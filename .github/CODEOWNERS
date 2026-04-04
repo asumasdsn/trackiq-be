@@ -1,0 +1,9 @@
+# Define who is responsible for specific parts of the codebase.
+# These users will be automatically requested for review when a PR is opened.
+
+# Global owners for the entire repository
+*       @asumasdsn @arunsukumar412
+
+# Backend specific owners
+/app/   @asumasdsn
+/tests/ @asumasdsn
