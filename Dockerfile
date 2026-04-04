@@ -25,5 +25,5 @@ COPY . .
 ENV PORT=8000
 EXPOSE $PORT
 
-# Command to run the application
-CMD uvicorn app.main:app --host 0.0.0.0 --port $PORT
+# Command to run the application using shell expansion for PORT
+CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}"]
