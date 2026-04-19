@@ -31,3 +31,16 @@ class AgentService:
             self.db.delete(agent)
             self.db.commit()
         return agent
+
+    def update_agent(self, agent_id: str, data: dict):
+        agent = self.get_agent(agent_id)
+        if not agent:
+            return None
+        
+        for key, value in data.items():
+            if hasattr(agent, key) and value is not None:
+                setattr(agent, key, value)
+        
+        self.db.commit()
+        self.db.refresh(agent)
+        return agent
