@@ -13,6 +13,7 @@ class AutomationTaskBase(BaseModel):
     border_color: str
     full_width: bool = False
     status: str = "PENDING"
+    attached_file_id: Optional[str] = None
 
 class AutomationTaskCreate(AutomationTaskBase):
     pass
