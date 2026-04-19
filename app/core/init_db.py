@@ -21,9 +21,48 @@ def init_db():
             conn.execute(text("ALTER TABLE users ADD COLUMN is_super_admin BOOLEAN DEFAULT FALSE"))
             conn.commit()
 
+    if "automation_tasks" in inspector.get_table_names():
+        automation_columns = [c['name'] for c in inspector.get_columns("automation_tasks")]
+        if "attached_file_id" not in automation_columns:
+            print("Migrating: Adding 'attached_file_id' column to 'automation_tasks' table")
+            with engine.connect() as conn:
+                conn.execute(text("ALTER TABLE automation_tasks ADD COLUMN attached_file_id VARCHAR"))
+                conn.commit()
+
     db = SessionLocal()
     try:
-        # 3. Seed initial projects
+        # 3. Seed System Prompt (Universal)
+        from app.models.automation import SystemPrompt
+        if not db.query(SystemPrompt).filter_by(name="Kanban Task Generator").first():
+            print("Seeding: Creating System Prompt")
+            prompt = SystemPrompt(
+                name="Kanban Task Generator",
+                description="Prompt used to generate tasks from project files.",
+                content='''You are an expert technical project manager AI. Your task is to analyze the provided project documentation and break it down into actionable tasks for a Kanban tracking board.
+    
+You must output your response EXACTLY as a JSON object matching this schema. Do not enclose it in markdown blocks (no ```json). Output only valid JSON.
+
+{
+    "tasks": [
+        {
+            "title": "Clear, concise task title",
+            "identifier": "Short alphanumeric ID (e.g., FRONT-101)",
+            "description": "Detailed explanation of the requirements",
+            "assignee_name": "Suggested team member name based on their role",
+            "assignee_avatar": "2 letter initials of assignee (e.g., SC)",
+            "epic": "The broader category, e.g., ENDEAVOUR, EXPERIENCE",
+            "column": "One of exactly: TO DO, IN PROGRESS, QA, DONE",
+            "labels": ["string", "string"]
+        }
+    ]
+}
+
+Analyze the user's prompt or uploaded text, assess the required roles, and intelligently distribute the tasks across the team. Make sure to generate realistic assignments.'''
+            )
+            db.add(prompt)
+            db.commit()
+
+        # 4. Seed initial projects
         if not db.query(Project).first():
             print("Seeding: Creating initial projects")
             projects = [
@@ -96,6 +135,36 @@ def init_db():
             print(f"Update: Promoting {admin_email} to Super Admin")
             admin_user.is_super_admin = True
             db.commit()
+
+        # 6. Seed Project Board
+        from app.models.project_board import Board, BoardColumn, BoardEpic
+        if not db.query(Board).first():
+            print("Seeding: Creating initial Kanban Board")
+            first_project = db.query(Project).first()
+            project_id = first_project.id if first_project else None
+            
+            board = Board(name="Banc.ly frontend", description="Next-gen software project", project_id=project_id)
+            db.add(board)
+            db.commit()
+            db.refresh(board)
+            
+            # Create default columns
+            columns = [
+                BoardColumn(board_id=board.id, name="TO DO", order=0),
+                BoardColumn(board_id=board.id, name="IN PROGRESS", order=1),
+                BoardColumn(board_id=board.id, name="QA", order=2),
+                BoardColumn(board_id=board.id, name="DONE", order=3)
+            ]
+            db.add_all(columns)
+            
+            # Create default epics
+            epics = [
+                BoardEpic(board_id=board.id, name="ENDEAVOUR", color="bg-indigo-100 text-indigo-700"),
+                BoardEpic(board_id=board.id, name="EXPERIENCE", color="bg-purple-100 text-purple-700")
+            ]
+            db.add_all(epics)
+            db.commit()
+
     except Exception as e:
         print(f"Error during seeding: {e}")
         db.rollback()
