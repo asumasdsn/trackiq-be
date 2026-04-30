@@ -52,6 +52,7 @@ class BoardTask(Base):
     identifier = Column(String, nullable=False) # e.g. FRONT-401
     labels = Column(JSON, default=list) # List of strings
     due_date = Column(DateTime, nullable=True)
+    github_data = Column(JSON, default=dict) # Linked VCS metadata: {branch, pr_url, repo, status}
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     
     column = relationship("BoardColumn", back_populates="tasks")

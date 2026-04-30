@@ -40,3 +40,14 @@ class OrganizationProfile(Base):
     primary_contact_phone = Column(String, nullable=True)
     logo_url = Column(String, nullable=True)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+class PermissionModule(Base):
+    __tablename__ = "permission_modules"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    name = Column(String, nullable=False, unique=True)
+    description = Column(String, nullable=True)
+    icon_name = Column(String, default="Zap")
+    default_permissions = Column(JSON, default=[1, 1, 1, 0, 1]) # [View, Create, Edit, Delete, Exec]
+    category = Column(String, default="Operation")
+    created_at = Column(DateTime, default=datetime.utcnow)
