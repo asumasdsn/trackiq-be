@@ -37,3 +37,13 @@ async def delete_agent(agent_id: str, db: Session = Depends(get_db)):
     service = AgentService(db)
     service.delete_agent(agent_id)
     return None
+
+
+@router.patch("/{agent_id}", response_model=AgentResponse)
+async def update_agent(agent_id: str, payload: dict, db: Session = Depends(get_db)):
+    """Update an existing agent configuration."""
+    service = AgentService(db)
+    agent = service.update_agent(agent_id, payload)
+    if not agent:
+        raise HTTPException(status_code=404, detail="Agent not found")
+    return agent
