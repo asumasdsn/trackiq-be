@@ -1,3 +1,4 @@
+from typing import List, Any
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
@@ -10,6 +11,7 @@ from app.core.security import (
     verify_refresh_token,
 )
 from app.models.user import User
+from app.models.marketing import ProductFeature
 from app.schemas.auth import (
     AuthResponse,
     MessageResponse,
@@ -37,6 +39,23 @@ def _build_user_response(user: User) -> UserResponse:
         created_at=user.created_at.isoformat(),
     )
 
+# ---------------------------------------------------------------------------
+# PUBLIC: GET /auth/product-guide
+# ---------------------------------------------------------------------------
+@router.get("/product-guide", response_model=List[Any])
+def get_product_guide(db: Session = Depends(get_db)):
+    """Retrieve high-fidelity platform onboarding nodes."""
+    features = db.query(ProductFeature).order_by(ProductFeature.display_order).all()
+    return [
+        {
+            "id": f.id,
+            "title": f.title,
+            "description": f.description,
+            "icon_name": f.icon_name,
+            "benefit_highlight": f.benefit_highlight,
+            "category": f.category
+        } for f in features
+    ]
 
 # ---------------------------------------------------------------------------
 # POST /auth/signup
@@ -48,13 +67,7 @@ def _build_user_response(user: User) -> UserResponse:
     summary="Register a new user",
 )
 def signup(payload: UserSignupRequest, db: Session = Depends(get_db)):
-    """
-    Create a new user account.
-
-    - Validates email uniqueness
-    - Hashes the password with bcrypt
-    - Issues an access token + refresh token pair immediately
-    """
+    """Create a new user account."""
     existing = db.query(User).filter(User.email == payload.email).first()
     if existing:
         raise HTTPException(
@@ -94,9 +107,7 @@ def signup(payload: UserSignupRequest, db: Session = Depends(get_db)):
     summary="Log in with email and password",
 )
 def login(payload: UserLoginRequest, db: Session = Depends(get_db)):
-    """
-    Authenticate a user and return JWT access + refresh tokens.
-    """
+    """Authenticate a user and return JWT access + refresh tokens."""
     user = db.query(User).filter(User.email == payload.email).first()
 
     if not user or not verify_password(payload.password, user.hashed_password):
@@ -135,10 +146,7 @@ def refresh_access_token(
     payload: RefreshTokenRequest,
     db: Session = Depends(get_db),
 ):
-    """
-    Exchange a valid refresh token for a new access + refresh token pair.
-    Old refresh token is effectively invalidated (rotation strategy).
-    """
+    """Exchange a valid refresh token for a new access + refresh token pair."""
     user_id = verify_refresh_token(payload.refresh_token)
     if not user_id:
         raise HTTPException(
@@ -184,10 +192,5 @@ def get_me(current_user: User = Depends(get_current_active_user)):
     summary="Log out (client-side token invalidation)",
 )
 def logout(_: User = Depends(get_current_active_user)):
-    """
-    Logout endpoint. Since JWTs are stateless, the actual invalidation
-    must happen on the client by deleting stored tokens.
-    This endpoint exists as a clear API contract and can be extended
-    with a token-blacklist / Redis approach in production.
-    """
+    """Logout endpoint."""
     return MessageResponse(message="Logged out successfully. Please clear your tokens.")

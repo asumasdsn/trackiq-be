@@ -4,6 +4,8 @@ from app.schemas.project import ProjectCreate, ProjectResponse
 from app.models.project import Project
 from app.core.database import get_db
 
+from app.utils.audit import log_audit
+
 router = APIRouter()
 
 
@@ -18,6 +20,18 @@ async def create_project(payload: ProjectCreate, db: Session = Depends(get_db)):
     db.add(project)
     db.commit()
     db.refresh(project)
+    
+    # Audit Log
+    log_audit(db, action="PROJECT_CREATED", resource="projects", details={"name": project.name})
+    
+    return project
+
+
+@router.get("/{project_id}", response_model=ProjectResponse)
+async def get_project(project_id: str, db: Session = Depends(get_db)):
+    project = db.query(Project).filter(Project.id == project_id).first()
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
     return project
 
 
@@ -32,4 +46,8 @@ async def update_project(project_id: str, payload: dict, db: Session = Depends(g
     
     db.commit()
     db.refresh(project)
+    
+    # Audit Log
+    log_audit(db, action="PROJECT_UPDATED", resource="projects", details={"name": project.name, "status": project.status})
+    
     return project

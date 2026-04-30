@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from typing import List, Optional, Any
+from typing import List, Optional, Any, Dict
 from datetime import datetime
 
 class TaskCommentBase(BaseModel):
@@ -25,6 +25,7 @@ class BoardTaskBase(BaseModel):
     identifier: str
     labels: List[str] = []
     due_date: Optional[datetime] = None
+    github_data: Optional[Dict[str, Any]] = {}
 
 class BoardTaskCreate(BoardTaskBase):
     column_id: str

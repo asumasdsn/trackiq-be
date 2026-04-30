@@ -22,6 +22,8 @@ class Settings(BaseSettings):
     OPENAI_API_KEY: str = ""
     ANTHROPIC_API_KEY: str = ""
     DEFAULT_LLM_MODEL: str = "gpt-4o"
+    LOCAL_MODEL: str = "phi3:latest"
+    OLLAMA_URL: str = "http://ollama:11434"
 
     # LangSmith (optional tracing)
     LANGCHAIN_TRACING_V2: bool = False
@@ -34,9 +36,11 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 15        # 15 minutes
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7           # 7 days
 
-    class Config:
-        env_file = ".env"
-        case_sensitive = True
+    model_config = {
+        "env_file": ".env",
+        "case_sensitive": True,
+        "extra": "ignore"
+    }
 
 
 settings = Settings()

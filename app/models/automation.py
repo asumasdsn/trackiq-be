@@ -38,6 +38,7 @@ class AutomationTask(Base):
     full_width = Column(Boolean, default=False)
     status = Column(String, default="PENDING") # PENDING, APPROVED, REJECTED
     attached_file_id = Column(String, nullable=True)
+    clarifications = Column(JSON, nullable=True) # Strategic interrogation Q&A
     
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())

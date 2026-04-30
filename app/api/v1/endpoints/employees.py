@@ -6,6 +6,8 @@ from app.core.database import get_db
 from app.models.employee import Employee
 from app.schemas.employee import EmployeeResponse, EmployeeCreate, EmployeeUpdate
 
+from app.utils.audit import log_audit
+
 router = APIRouter()
 
 @router.get("/", response_model=List[EmployeeResponse])
@@ -20,6 +22,10 @@ def create_employee(employee: EmployeeCreate, db: Session = Depends(get_db)):
     db.add(db_employee)
     db.commit()
     db.refresh(db_employee)
+    
+    # Audit Log
+    log_audit(db, action="MEMBER_ADDED", resource="employees", details={"name": db_employee.name, "role": db_employee.position})
+    
     return db_employee
 
 @router.patch("/{employee_id}", response_model=EmployeeResponse)
@@ -35,6 +41,10 @@ def update_employee(employee_id: str, employee: EmployeeUpdate, db: Session = De
     
     db.commit()
     db.refresh(db_employee)
+    
+    # Audit Log
+    log_audit(db, action="MEMBER_UPDATED", resource="employees", details={"name": db_employee.name})
+    
     return db_employee
 
 @router.delete("/{employee_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -44,6 +54,11 @@ def delete_employee(employee_id: str, db: Session = Depends(get_db)):
     if not db_employee:
         raise HTTPException(status_code=404, detail="Employee not found")
     
+    name = db_employee.name
     db.delete(db_employee)
     db.commit()
+    
+    # Audit Log
+    log_audit(db, action="MEMBER_REMOVED", resource="employees", details={"name": name})
+    
     return None

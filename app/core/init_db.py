@@ -4,6 +4,7 @@ from app.models.user import User
 from app.models.admin import SystemSettings, AuditLog, OrganizationProfile
 from app.models.project import Project
 from app.models.automation import AutomationTask
+from app.models.project_board import Board, BoardColumn, BoardEpic, BoardTask, TaskComment
 from app.core.security import hash_password
 
 def init_db():
@@ -13,21 +14,26 @@ def init_db():
     # 2. Check for missing columns in existing tables (Self-healing)
     inspector = inspect(engine)
     
-    # Check 'users' table for 'is_super_admin'
-    columns = [c['name'] for c in inspector.get_columns("users")]
-    if "is_super_admin" not in columns:
-        print("Migrating: Adding 'is_super_admin' column to 'users' table")
-        with engine.connect() as conn:
-            conn.execute(text("ALTER TABLE users ADD COLUMN is_super_admin BOOLEAN DEFAULT FALSE"))
-            conn.commit()
-
-    if "automation_tasks" in inspector.get_table_names():
-        automation_columns = [c['name'] for c in inspector.get_columns("automation_tasks")]
-        if "attached_file_id" not in automation_columns:
-            print("Migrating: Adding 'attached_file_id' column to 'automation_tasks' table")
+    try:
+        columns = [c['name'] for c in inspector.get_columns("users")]
+        if "is_super_admin" not in columns:
+            print("Migrating: Adding 'is_super_admin' column to 'users' table")
             with engine.connect() as conn:
-                conn.execute(text("ALTER TABLE automation_tasks ADD COLUMN attached_file_id VARCHAR"))
+                conn.execute(text("ALTER TABLE users ADD COLUMN is_super_admin BOOLEAN DEFAULT FALSE"))
                 conn.commit()
+    except Exception as e:
+        print(f"Non-critical migration notice (users): {e}")
+
+    try:
+        if "automation_tasks" in inspector.get_table_names():
+            automation_columns = [c['name'] for c in inspector.get_columns("automation_tasks")]
+            if "attached_file_id" not in automation_columns:
+                print("Migrating: Adding 'attached_file_id' column to 'automation_tasks' table")
+                with engine.connect() as conn:
+                    conn.execute(text("ALTER TABLE automation_tasks ADD COLUMN attached_file_id VARCHAR"))
+                    conn.commit()
+    except Exception as e:
+        print(f"Non-critical migration notice (automation_tasks): {e}")
 
     db = SessionLocal()
     try:
@@ -137,7 +143,6 @@ Analyze the user's prompt or uploaded text, assess the required roles, and intel
             db.commit()
 
         # 6. Seed Project Board
-        from app.models.project_board import Board, BoardColumn, BoardEpic
         if not db.query(Board).first():
             print("Seeding: Creating initial Kanban Board")
             first_project = db.query(Project).first()
@@ -163,6 +168,40 @@ Analyze the user's prompt or uploaded text, assess the required roles, and intel
                 BoardEpic(board_id=board.id, name="EXPERIENCE", color="bg-purple-100 text-purple-700")
             ]
             db.add_all(epics)
+            db.commit()
+            
+            # Create sample tasks
+            to_do_col = next(c for c in columns if c.name == "TO DO")
+            in_prog_col = next(c for c in columns if c.name == "IN PROGRESS")
+            qa_col = next(c for c in columns if c.name == "QA")
+            
+            sample_tasks = [
+                BoardTask(
+                    column_id=to_do_col.id, 
+                    title="Implement Redis Caching Layer", 
+                    identifier="BE-101", 
+                    priority="High",
+                    assignee_name="Alex Rivera",
+                    assignee_avatar="AR"
+                ),
+                BoardTask(
+                    column_id=in_prog_col.id, 
+                    title="Refactor Hook Patterns", 
+                    identifier="FE-402", 
+                    priority="Medium",
+                    assignee_name="Sarah Chen",
+                    assignee_avatar="SC"
+                ),
+                BoardTask(
+                    column_id=qa_col.id, 
+                    title="Database Schema Migration", 
+                    identifier="DB-88", 
+                    priority="Critical",
+                    assignee_name="Marcus Aurelius",
+                    assignee_avatar="MA"
+                )
+            ]
+            db.add_all(sample_tasks)
             db.commit()
 
     except Exception as e:
